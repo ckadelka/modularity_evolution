@@ -251,8 +251,6 @@ def run_evolutionary_study_with_replicates_with_ph_match(
     
     in simple terms, adding target attractor selection ACCURACY as a secondary criterion.
     """
-    # hash_stamp = f"{M}{q}{g}{N}{n}{k}{alpha_ph_rob}{alpha_n_attractors}{alpha_fragility}{alpha_fhd}{mutation_probability}{STRONGLY_CONNECTED}{NO_SELF_REGULATION}{MUTATE_ONLY_CHILDREN}{indegree_distribution}{n_reps}"    
-    # hash_stamp = f"{M}{q}{g}{N}{n}{k}{alpha_ph_rob}{alpha_n_attractors}{alpha_fragility}{alpha_fhd}{mutation_probability}{target_ph}{STRONGLY_CONNECTED}{NO_SELF_REGULATION}{MUTATE_ONLY_CHILDREN}{indegree_distribution}{n_reps}{selection_method}{selection_strength}{DEBUG}"
     hash_stamp = hash_params(-1, M=M, q=q, g=g, N=N, n=n, k=k, alpha_ph_rob=alpha_ph_rob, alpha_n_attractors=alpha_n_attractors, alpha_ph_match=alpha_ph_match, alpha_fragility=alpha_fragility, alpha_fhd=alpha_fhd, mutation_probability=mutation_probability, target_ph=target_ph, STRONGLY_CONNECTED=STRONGLY_CONNECTED, NO_SELF_REGULATION=NO_SELF_REGULATION, MUTATE_ONLY_CHILDREN=MUTATE_ONLY_CHILDREN, indegree_distribution=indegree_distribution, n_reps=n_reps, selection_method=selection_method, selection_strength=selection_strength)
     print("Hash stamp for this run:", hash_stamp)
     print("Data path for this run:", data_path)

@@ -369,3 +369,71 @@ def plot_selection_strength2(ranks, weights, lambdas, M=100):
         weights = [((M-r)/M)**lam for r in  ranks]
         ax.plot(ranks,weights/np.sum(weights),label=f"λ = {lam}")
     ax.legend(loc='best')
+
+
+def plot_grouped_bars(sccs_for_specific_mutation_probability, keys, mu, lam):
+    # Data processing remains the same
+    mean_number_sccs_gen0 = []
+    mean_number_sccs_genx = []
+    std_number_sccs_gen0 = []
+    std_number_sccs_genx = []
+    
+    for i, scc_mat in enumerate(sccs_for_specific_mutation_probability):
+        avg_arr = np.mean(scc_mat, axis=(0, 2))
+        std_arr = np.std(scc_mat, axis=(0, 2))  # Corrected from mean to std
+        
+        mean_number_sccs_gen0.append(avg_arr[0])
+        mean_number_sccs_genx.append(avg_arr[-1])
+        std_number_sccs_gen0.append(std_arr[0])
+        std_number_sccs_genx.append(std_arr[-1])
+    
+    # Plotting setup
+    width = 0.35
+    x = np.arange(len(sccs_for_specific_mutation_probability))
+    
+    # Create figure and axes
+    fig, ax = plt.subplots(figsize=(12, 7))
+    plt.style.use('seaborn-v0_8-whitegrid')
+    
+    # Prepare data for plotting
+    mean_number_sccs = [mean_number_sccs_gen0, mean_number_sccs_genx]
+    std_number_sccs = [std_number_sccs_gen0, std_number_sccs_genx]
+    
+    # Generation label helper
+    def get_generation_label(index):
+        if index > 0:
+            return f'Gen {len(avg_arr)-1}'
+        return f'Gen {index}'
+    
+    # Plot bars
+    for i, (mean, std) in enumerate(zip(mean_number_sccs, std_number_sccs)):
+        ax.bar(x + (i - 0.5)*width, mean, width=width, 
+               label=get_generation_label(i), yerr=std)
+    
+    
+    # for i, mean in enumerate(mean_number_sccs):
+    #     ax.bar(x + (i - 0.5)*width, mean, width=width, 
+    #            label=get_generation_label(i))
+    
+    # Add mu annotation
+    # ax.text(0.02, 0.98, f'μ = {mu}', transform=ax.transAxes,
+    #         fontsize=12, verticalalignment='top',
+    #         bbox=dict(facecolor='white', alpha=0.8))
+    ax.text(0.02, 0.98, f'μ = {mu}, λ = {lam}',
+        transform=ax.transAxes,
+        fontsize=12, verticalalignment='top',
+        bbox=dict(facecolor='white', alpha=0.8))
+    
+    # Axis labels and title
+    ax.set_ylabel('Average SCC')
+    ax.set_xlabel('Alpha Combinations')
+    ax.set_xticks(x)
+    ax.set_xticklabels(keys, rotation=45)
+    # ax.set_title(f'Emergence of Modularity {population_size} rBNs of {N} nodes {n_sim} iterations', 
+    #              fontsize=14, pad=20)
+    ax.set_title(f'Emergence of Modularity 100 rBNs of 10 nodes 100 iterations', 
+                 fontsize=14, pad=20)
+    ax.legend(title='Generations')
+    
+    plt.tight_layout()
+    plt.show()
