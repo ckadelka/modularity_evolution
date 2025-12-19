@@ -1,16 +1,25 @@
 import numpy as np
+import pandas as pd
 import hashlib
 import random
 import os
 import pickle
 import itertools
 import boolforge
+import json
 
-def hash_params(**kwargs):
-    """Generate a unique hash for a given set of python function parameters. It also sorts the params so that order passed doesn't matter."""
+
+def hash_params(count, **kwargs):
+    """Generate a unique hash for a given set of python function parameters. It also sorts the params so that order passed doesn't matter.
+    pass -1 in count param to get the full hash.
+    count is the length of the hash you want to retrieve. .e.g passing 10 retireve first 10 characters of the hash
+    """
     print(f'Hashing parameters: {kwargs}')
     sig_str = ''.join(f'{value}' for _ , value in sorted(kwargs.items()))
-    return hashlib.sha256(sig_str.encode()).hexdigest()[:10]
+    keys = ', '.join(f'{key}={value}' for key, value in sorted(kwargs.items()))
+    print('Parameter string for hashing:', keys)
+    print(f'Generated signature string: {sig_str}')
+    return hashlib.sha256(sig_str.encode()).hexdigest()[:] if count == -1 else hashlib.sha256(sig_str.encode()).hexdigest()[:count]
 
 
 def generate_convex_combinations(step_size, dimension=3):
@@ -55,17 +64,18 @@ def int_to_binvec(x, N):
 def save_data(data, filename, folder='data'):
     if not os.path.exists(folder):
         os.makedirs(folder)
-    file_path = os.path.join(folder, filename)
+    file_path = os.path.abspath(os.path.join(folder, filename))
     with open(file_path, 'wb') as file:
         pickle.dump(data, file)
     print(f"Data successfully saved to {file_path}")
     
     
 def load_data(filename, folder='data'):
-    file_path = os.path.join(folder, filename)
+    file_path = os.path.abspath(os.path.join(folder, filename))
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"No such file: '{file_path}'")
     with open(file_path, 'rb') as file:
+        print(f"Data file FOUND it's actually LOADING DATA..................")
         data = pickle.load(file)
     return data
 
@@ -112,6 +122,115 @@ def roulette_wheel_selection(M, current_fitness_values, lam=1):
     return children, ranks, weights 
 
 
+
+def load_generated_data(signature):
+    data_path = os.path.join('data/', f'{signature}')
+    print(f'Loading data from {data_path}')
+    if not os.path.exists(data_path):
+        print(f"Error: Data path '{data_path}' does not exist. Kindly check the signature or verify that you have run the data generation step.")
+        return None
+    if not os.path.exists('master_data_file.csv'):
+        print(f'Error: master_data_file.csv does not exist. Kindly check the signature or verify that you have run the data generation step.')
+        return None
+    df = pd.read_csv(os.path.join('master_data_file.csv'))
+    row_df = df[df['signature'] == signature]
+    if len(row_df) == 0:
+        print(f'Error: Data path with this signature does not exist. Kindly check the signature or verify that you have run the data generation step.')
+        return None
+    print(f'Found data for signature {signature} in master_data_file.csv')
+    print(df)
+
+    row_data = row_df.iloc[0].to_dict()
+    print(f'Row data: {row_data}')
+    
+    #my dilemma is to find a way to load the data for this signature folder
+    #into my NdArray variables sccs, final_degrees, pheno, attr, ph_match, ranks, weights
+    #now deserialize things from the row record of this data signature in dataframe 
+    print(f"Loading data for signature {signature}, from {data_path}")
+    print(f"columns are {df.columns}")
+    selection_strengths = json.loads(row_data['selection_strengths'])
+    print(f'Selection strengths: {selection_strengths}')
+    print(f'type of selection_strengths: {type(selection_strengths)}')
+    print(f"n_alphas: {row_data['n_alphas']}")
+    n_alphas = int(row_data['n_alphas'])
+    population_size = int(row_data['population_size'])
+    n_reps = int(row_data['n_reps'])
+    mutation_probability = float(row_data['mutation_probability'])
+    M = int(row_data['population_size'])
+    print(f"retrieved M is {M}")
+    q = float(row_data['percent_selected'])
+    g = int(row_data['generations'])
+    N = int(row_data['network_size'])
+    n = int(row_data['degree'])    
+    k = int(row_data['canalizing_depth'])
+    alpha_dyn = json.loads(row_data['alpha_dyn'])
+    all_alphas = generate_alpha_combinations(alpha_dyn)
+    indegree_distribution = row_data['indegree_distribution']
+    selection_method = row_data['selection_method']
+    STRONGLY_CONNECTED = bool(row_data['STRONGLY_CONNECTED'])
+    MUTATE_ONLY_CHILDREN = bool(row_data['MUTATE_ONLY_CHILDREN'])
+    NO_SELF_REGULATION = bool(row_data['NO_SELF_REGULATION'])
+    DEBUG_MODE = False
+    
+    sccs = []
+    sccs2 = []
+    ph_match2 = []
+    final_degrees=[]
+    pheno = []
+    attr = []
+    ph_match = []
+    fit2 = []
+    ranks = []
+    weights = []
+    print(f"selection strengths before we start iterating data... >>> {selection_strengths}")
+    for selection_strength in selection_strengths:
+        sccs.append([])
+        final_degrees.append([])
+        pheno.append([])
+        attr.append([])
+        sccs2.append([])
+        ph_match2.append([])
+        ph_match.append([])
+        fit2.append([])
+        ranks.append([])
+        weights.append([])
+        for i, (alpha_ph_rob, alpha_ph_match, alpha_n_attractors) in sorted(enumerate(all_alphas), key=lambda x: x[1][0]):
+            data = run_evolutionary_study_with_replicates_with_ph_match(population_size, q, g, N, n=n, k=k, 
+                                          alpha_ph_rob=alpha_ph_rob, 
+                                          alpha_n_attractors=alpha_n_attractors, alpha_ph_match=alpha_ph_match, 
+                                          alpha_fragility=0, alpha_fhd=0, 
+                                          mutation_probability=mutation_probability, STRONGLY_CONNECTED=STRONGLY_CONNECTED, 
+                                          NO_SELF_REGULATION=NO_SELF_REGULATION, MUTATE_ONLY_CHILDREN=MUTATE_ONLY_CHILDREN,
+                                          indegree_distribution=indegree_distribution, 
+                                          n_reps=n_reps, 
+                                          selection_method=selection_method, 
+                                          selection_strength=selection_strength,
+                                          DEBUG=DEBUG_MODE, data_path=data_path)
+            fitness_mat, num_attractors_mat, phenotypical_robustness_mat, strongly_connected_component_mat, fragility_mat, final_hamming_distance_mat, final_degree_mat, ph_match_fitness_mat,ranks_mat, weights_mat = data       
+            sccs[-1].append(strongly_connected_component_mat)
+            key = f'({round(alpha_ph_rob, 4)}, {round(alpha_n_attractors, 4)}, {round(alpha_ph_match, 4)})'
+            sccs2[-1].append({key: strongly_connected_component_mat}) 
+            final_degrees[-1].append(final_degree_mat)
+            pheno[-1].append(phenotypical_robustness_mat)
+            attr[-1].append(num_attractors_mat)
+            ph_match[-1].append(ph_match_fitness_mat)
+            ph_match2[-1].append({key: ph_match_fitness_mat})
+            fit2[-1].append({key: fitness_mat})
+            ranks[-1].append(ranks_mat)
+            weights[-1].append(weights_mat)
+            
+    sccs = np.array(sccs)
+    final_degrees = np.array(final_degrees)
+    pheno = np.array(pheno)
+    attr = np.array(attr)
+    ph_match = np.array(ph_match)
+    ranks = np.array(ranks)
+    weights = np.array(weights)
+    
+    print(np.mean(final_degrees[:,:,:,-1,:],(2,3))) 
+    
+    return sccs, final_degrees, pheno, attr, ph_match, ranks, weights
+
 def run_evolutionary_study_with_replicates_with_ph_match(
     M, q, g, N, n, k=0, 
     alpha_ph_rob=1, alpha_n_attractors=0, alpha_ph_match=0, alpha_fragility=0, alpha_fhd=0,
@@ -133,8 +252,10 @@ def run_evolutionary_study_with_replicates_with_ph_match(
     in simple terms, adding target attractor selection ACCURACY as a secondary criterion.
     """
     # hash_stamp = f"{M}{q}{g}{N}{n}{k}{alpha_ph_rob}{alpha_n_attractors}{alpha_fragility}{alpha_fhd}{mutation_probability}{STRONGLY_CONNECTED}{NO_SELF_REGULATION}{MUTATE_ONLY_CHILDREN}{indegree_distribution}{n_reps}"    
-    hash_stamp = f"{M}{q}{g}{N}{n}{k}{alpha_ph_rob}{alpha_n_attractors}{alpha_fragility}{alpha_fhd}{mutation_probability}{target_ph}{STRONGLY_CONNECTED}{NO_SELF_REGULATION}{MUTATE_ONLY_CHILDREN}{indegree_distribution}{n_reps}{selection_method}{selection_strength}{DEBUG}"
-   
+    # hash_stamp = f"{M}{q}{g}{N}{n}{k}{alpha_ph_rob}{alpha_n_attractors}{alpha_fragility}{alpha_fhd}{mutation_probability}{target_ph}{STRONGLY_CONNECTED}{NO_SELF_REGULATION}{MUTATE_ONLY_CHILDREN}{indegree_distribution}{n_reps}{selection_method}{selection_strength}{DEBUG}"
+    hash_stamp = hash_params(-1, M=M, q=q, g=g, N=N, n=n, k=k, alpha_ph_rob=alpha_ph_rob, alpha_n_attractors=alpha_n_attractors, alpha_ph_match=alpha_ph_match, alpha_fragility=alpha_fragility, alpha_fhd=alpha_fhd, mutation_probability=mutation_probability, target_ph=target_ph, STRONGLY_CONNECTED=STRONGLY_CONNECTED, NO_SELF_REGULATION=NO_SELF_REGULATION, MUTATE_ONLY_CHILDREN=MUTATE_ONLY_CHILDREN, indegree_distribution=indegree_distribution, n_reps=n_reps, selection_method=selection_method, selection_strength=selection_strength)
+    print("Hash stamp for this run:", hash_stamp)
+    print("Data path for this run:", data_path)
     # Generate target phenotype if not provided
     if target_ph is None:
         target_ph = np.random.randint(0, 2, N)

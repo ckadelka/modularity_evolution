@@ -58,7 +58,7 @@ if __name__ == "__main__":
         
     n_alphas = 5  
     #another experiment
-    population_size = 10
+    population_size = 8
     n_reps = 2
     alpha_dyn = [0, 0.005]
     convex_2d = utils.generate_convex_combinations(1/n_alphas,dimension=2)
@@ -81,13 +81,17 @@ if __name__ == "__main__":
     selection_method = 'roulette_wheel_with_replacement'
     selection_strengths = [0, 1, 3, 10]
     mutation_probability = 0.05
-    g =  100
+    g =  2
+    M = 2
     
     # f"{M}{q}{g}{N}{n}{k}{mutation_probability}{selection_method}{selection_strengths}{indegree_distribution}{n_alphas}{population_size}{n_sim}"
-    signature = utils.hash_params(M=M, q=q, g=g, N=N, n=n, k=k, mutation_probability=mutation_probability, selection_method=selection_method, selection_strengths=selection_strengths, indegree_distribution=indegree_distribution, n_alphas=n_alphas, population_size=population_size, n_reps=n_reps)
+    signature = utils.hash_params(10, M=M, q=q, g=g, N=N, n=n, k=k, mutation_probability=mutation_probability, selection_method=selection_method, selection_strengths=str(selection_strengths), indegree_distribution=indegree_distribution, n_alphas=n_alphas, n_reps=n_reps)
     print(f'Run Signature: {signature}')
-    sccs, final_degrees, pheno, attr, ph_match, ranks, weights = generate_data.load_generated_data(signature)
+    print("loading data...")
+    sccs, final_degrees, pheno, attr, ph_match, ranks, weights = utils.load_generated_data(signature)
+    print("data loaded")
     print(np.mean(final_degrees[:,:,:,-1,:],(2,3)))
+
     
     
     

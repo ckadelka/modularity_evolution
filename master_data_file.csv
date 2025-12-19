@@ -1,0 +1,2 @@
+population_size,percent_selected,generations,network_size,degree,canalizing_depth,mutation_probability,selection_method,selection_strengths,indegree_distribution,n_alphas,alpha_dyn,STRONGLY_CONNECTED,MUTATE_ONLY_CHILDREN,NO_SELF_REGULATION,n_reps,signature,date
+2,0.1,2,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,5,"[0, 0.005]",False,True,True,2,6d9345091e,2025-12-19 12:55:48.051484
