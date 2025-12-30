@@ -8,6 +8,15 @@ import utils_plotting as plot
 
 
 try:
+    import src.utils as utils
+    import src.generate_data as generate_data
+    import src.utils_plotting as plot
+except ModuleNotFoundError:
+    import utils
+    import generate_data
+    import utils_plotting as plot
+    
+try:
     filename = sys.argv[0]
     SLURM_ID = int(sys.argv[1])
 except:
@@ -88,7 +97,7 @@ if __name__ == "__main__":
     signature = utils.hash_params(10, M=M, q=q, g=g, N=N, n=n, k=k, mutation_probability=mutation_probability, selection_method=selection_method, selection_strengths=str(selection_strengths), indegree_distribution=indegree_distribution, n_alphas=n_alphas, n_reps=n_reps)
     print(f'Run Signature: {signature}')
     print("loading data...")
-    sccs, final_degrees, pheno, attr, ph_match, ranks, weights = utils.load_generated_data(signature)
+    sccs, sccs2, final_degrees, pheno, attr, ph_match, ranks, weights = utils.load_generated_data(signature)
     print("data loaded")
     print(np.mean(final_degrees[:,:,:,-1,:],(2,3)))
 
@@ -111,11 +120,9 @@ if __name__ == "__main__":
         
             
     
-    for i, mp in enumerate(selection_strengths):
-        plot.plot_emergency_scc_convergence(sccs2, i)
+    plot.plot_emergency_scc_convergence(sccs2, all_alphas=all_alphas, selection_strengths=selection_strengths, g=g)
         
-    for i, mp in enumerate(selection_strengths):
-        plot.plot_scc_scatter(sccs2, i)
+    plot.plot_scc_scatter(sccs2, all_alphas=all_alphas, selection_strengths=selection_strengths)
         
     plot.plot_selection_strength2(ranks, weights, selection_strengths)
 

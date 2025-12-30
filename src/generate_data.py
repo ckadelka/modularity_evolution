@@ -4,7 +4,10 @@ import csv
 import numpy as np
 import pandas as pd
 
-import utils
+try:
+    import src.utils as utils
+except ModuleNotFoundError:
+    import utils
 import json
 
 

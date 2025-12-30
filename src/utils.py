@@ -7,6 +7,7 @@ import pickle
 import itertools
 import boolforge
 import json
+import copy
 
 
 def hash_params(count, **kwargs):
@@ -121,6 +122,29 @@ def roulette_wheel_selection(M, current_fitness_values, lam=1):
     children = np.random.choice(M, M, replace=True, p=weights)
     return children, ranks, weights 
 
+def roulette_wheel_selection_v2(M, current_fitness_values, lam=1):
+    # We don't add +1 here, we just want the sorted indices
+    sorted_indices = np.argsort(-np.array(current_fitness_values))
+    
+    # Step 2: Assign weights based on POSITION in the sorted list
+    weights = []
+    
+    # We iterate through the sorted list. 'i' is the rank (0=best, M-1=worst)
+    for i in range(M):
+        weight = ((M - i) / M) ** lam
+        weights.append(weight)
+        
+    weights = np.array(weights)
+    weights = weights / np.sum(weights) # Normalize to sum to 1
+
+    # We select POSITIONS first (0 to M-1), then map them back to original indices
+    selected_positions = np.random.choice(M, M, replace=True, p=weights)
+    
+    # Map the selected positions back to the actual network indices
+    children_indices = sorted_indices[selected_positions]
+    
+    return children_indices, sorted_indices, weights
+
 
 
 def load_generated_data(signature):
@@ -229,7 +253,7 @@ def load_generated_data(signature):
     
     print(np.mean(final_degrees[:,:,:,-1,:],(2,3))) 
     
-    return sccs, final_degrees, pheno, attr, ph_match, ranks, weights
+    return sccs, sccs2, final_degrees, pheno, attr, ph_match, ranks, weights
 
 def run_evolutionary_study_with_replicates_with_ph_match(
     M, q, g, N, n, k=0, 
@@ -362,13 +386,15 @@ def run_evolutionary_study_with_replicates_with_ph_match(
 
                     #roulette-wheel selection...
                     indices_selected, ranks, weights = roulette_wheel_selection(M, fitness_scores, lam=selection_strength)
+                    indices_selected2, ranks2, weights2 = roulette_wheel_selection_v2(M, fitness_scores, lam=selection_strength)
+                    
                     print(f'{len(indices_selected)} children selected from the roulette wheel selection')
                     ranks_mat[gen,nth_sim, :] = ranks
                     weights_mat[gen,nth_sim, :] = weights
                     # Step C: Create next generation by DIRECT COPYING...
                     new_bns = []
                     for index in indices_selected:
-                        new_bns.append(bns[index])
+                        new_bns.append(copy.deepcopy(bns[index]))
                     bns = new_bns
                     
                     # Step D: Mutate the selected networks (now applies to ALL M networks)

@@ -4,65 +4,67 @@ import seaborn as sns
 
 
 
-def plot_scc_scatter(sccs, index, all_alphas=None, selection_strengths=None):
-
-    measure_name = 'scc'
-    f, ax = plt.subplots()
-    sns.set_theme(style="whitegrid")
-    plt.style.use('seaborn-v0_8-whitegrid')
-    
-    #create a colormap with distinct colors
-    colors = plt.cm.tab20(np.linspace(0, 1, len(all_alphas)))
-    # Select data for mutation probability 0.03 (index from input)
-    scc_p = sccs[index]  
-    
-    for i, scc_data in enumerate(scc_p):
-        if not scc_data:
-            continue
+def plot_scc_scatter(sccs, all_alphas=None, selection_strengths=None):
+    for index, _ in enumerate(selection_strengths):
+        measure_name = 'scc'
+        f, ax = plt.subplots()
+        sns.set_theme(style="whitegrid")
+        plt.style.use('seaborn-v0_8-whitegrid')
         
-        key, data = next(iter(scc_data.items()))
-        alpha1, alpha2, alpha3 = map(float, key.strip('()').split(','))
+        #create a colormap with distinct colors
+        colors = plt.cm.tab20(np.linspace(0, 1, len(all_alphas)))
+        # Select data for mutation probability 0.03 (index from input)
+        scc_p = sccs[index]  
         
-        if data.size == 0:
-            continue
+        for i, scc_data in enumerate(scc_p):
+            if not scc_data:
+                continue
+            
+            key, data = next(iter(scc_data.items()))
+            alpha1, alpha2, alpha3 = map(float, key.strip('()').split(','))
+            
+            if data.size == 0:
+                continue
+            
+            #mean across population and replications...
+            avg_convergence = data.mean(axis=(0, 2))  
+            
+            #plot scatter points for this alpha combination
+            print(f'length of avg convergence >>> {len(avg_convergence)}')
+            ax.scatter(
+                np.arange(len(avg_convergence)),
+                avg_convergence,
+                color=colors[i],
+                s=20,
+                alpha=0.8,
+                label=fr"$\alpha_1={round(alpha1,4)}$, $\alpha_2={round(alpha2,4)}$, $\alpha_3={round(alpha3,4)}$"
+            )
+        ax.text(0.02, 0.98, f'μ = 0.05, λ = {selection_strengths[index]}',
+            transform=ax.transAxes,
+            fontsize=12, verticalalignment='top',
+            bbox=dict(facecolor='white', alpha=0.8))
         
-        #mean across population and replications...
-        avg_convergence = data.mean(axis=(0, 2))  
+        ax.set_xlabel('Generation', fontsize=12)
+        ax.set_ylabel(measure_name.upper(), fontsize=12)
+        ax.set_xticks(np.arange(0, 20, 2))  
+        ax.tick_params(axis='x', labelsize=10)  
+        ax.tick_params(axis='y', labelsize=10)  
+        ax.grid(True, linestyle='--', alpha=0.6)
         
-        #plot scatter points for this alpha combination
-        print(f'length of avg convergence >>> {len(avg_convergence)}')
-        ax.scatter(
-            np.arange(len(avg_convergence)),
-            avg_convergence,
-            color=colors[i],
-            s=20,
-            alpha=0.8,
-            label=fr"$\alpha_1={round(alpha1,4)}$, $\alpha_2={round(alpha2,4)}$, $\alpha_3={round(alpha3,4)}$"
+        ax.legend(
+            bbox_to_anchor=(1.05, 1),
+            loc='upper left',
+            borderaxespad=0.,
+            fontsize=9,
+            frameon=True,
+            title='Alpha Combinations',
+            title_fontsize='10'
         )
-    ax.text(0.02, 0.98, f'μ = 0.05, λ = {selection_strengths[index]}',
-        transform=ax.transAxes,
-        fontsize=12, verticalalignment='top',
-        bbox=dict(facecolor='white', alpha=0.8))
+        
+        plt.tight_layout()
+        plt.show()
+
     
-    ax.set_xlabel('Generation', fontsize=12)
-    ax.set_ylabel(measure_name.upper(), fontsize=12)
-    ax.set_xticks(np.arange(0, 20, 2))  
-    ax.tick_params(axis='x', labelsize=10)  
-    ax.tick_params(axis='y', labelsize=10)  
-    ax.grid(True, linestyle='--', alpha=0.6)
-    
-    ax.legend(
-        bbox_to_anchor=(1.05, 1),
-        loc='upper left',
-        borderaxespad=0.,
-        fontsize=9,
-        frameon=True,
-        title='Alpha Combinations',
-        title_fontsize='10'
-    )
-    
-    plt.tight_layout()
-    plt.show()
 
 
 
@@ -286,63 +288,65 @@ def plot_heatmap(sccs, keys,  mutation_probabilities=None, k_canalizing=None, se
     plt.show()
 
 
-def plot_emergency_scc_convergence(sccs, index, all_alphas=None, selection_strengths=None, g=20):
-    measure_name = 'scc'
-    fig, ax = plt.subplots(figsize=(14, 8))
-    sns.set_theme(style="whitegrid")
-    plt.style.use('seaborn-v0_8-whitegrid')
+def plot_emergency_scc_convergence(sccs, all_alphas=None, selection_strengths=None, g=20):
+    for index, _ in enumerate(selection_strengths):
+        measure_name = 'scc'
+        fig, ax = plt.subplots(figsize=(14, 8))
+        sns.set_theme(style="whitegrid")
+        plt.style.use('seaborn-v0_8-whitegrid')
 
-    colors = plt.cm.tab20(np.linspace(0, 1, len(all_alphas)))
+        colors = plt.cm.tab20(np.linspace(0, 1, len(all_alphas)))
 
-    scc_p = sccs[index]
-    for i, scc_data in enumerate(scc_p):
-        if not scc_data:
-            continue
+        print(f"current index is >>> {index}")
+        scc_p = sccs[index]
+        for i, scc_data in enumerate(scc_p):
+            if not scc_data:
+                continue
 
-        key, data = next(iter(scc_data.items()))
-        alpha1, alpha2, alpha3 = map(float, key.strip('()').split(','))
-        print(f"Label {i}: alpha1={alpha1}, alpha2={alpha2}, alpha3={alpha3}")
+            key, data = next(iter(scc_data.items()))
+            alpha1, alpha2, alpha3 = map(float, key.strip('()').split(','))
+            print(f"Label {i}: alpha1={alpha1}, alpha2={alpha2}, alpha3={alpha3}")
 
-        if data.size == 0:
-            continue
+            if data.size == 0:
+                continue
 
-        avg_convergence = data.mean(axis=(0, 2))
+            avg_convergence = data.mean(axis=(0, 2))
 
-        ax.plot(
-            avg_convergence,
-            color=colors[i],
-            linewidth=2.5,
-            marker='o',
-            markersize=5,
-            label=fr"$\alpha_1={round(alpha1,4)}$, $\alpha_2={round(alpha2,4)}$, $\alpha_3={round(alpha3,4)}$"
+            ax.plot(
+                avg_convergence,
+                color=colors[i],
+                linewidth=2.5,
+                marker='o',
+                markersize=5,
+                label=fr"$\alpha_1={round(alpha1,4)}$, $\alpha_2={round(alpha2,4)}$, $\alpha_3={round(alpha3,4)}$"
+            )
+
+        ax.text(0.02, 0.98, f'μ = 0.05, λ = {selection_strengths[index]}',
+                transform=ax.transAxes,
+                fontsize=12, verticalalignment='top',
+                bbox=dict(facecolor='white', alpha=0.8))
+
+        ax.set_title(f'Convergence of {measure_name.upper()}s Across All Alpha Combinations\nPopulation Size: 100 | Generations: {g} | Iterations: 100',
+                    fontsize=14, pad=g)
+        ax.set_xlabel('Generation', fontsize=12)
+        ax.set_ylabel(measure_name.upper(), fontsize=12)
+        ax.set_xticks(np.arange(0, g, 2))
+        ax.tick_params(axis='x', labelsize=10)
+        ax.tick_params(axis='y', labelsize=10)
+        ax.grid(True, linestyle='--', alpha=0.6)
+
+        ax.legend(
+            bbox_to_anchor=(1.05, 1),
+            loc='upper left',
+            borderaxespad=0.,
+            fontsize=9,
+            frameon=True,
+            title='Alpha Combinations',
+            title_fontsize='10'
         )
 
-    ax.text(0.02, 0.98, f'μ = 0.05, λ = {selection_strengths[index]}',
-            transform=ax.transAxes,
-            fontsize=12, verticalalignment='top',
-            bbox=dict(facecolor='white', alpha=0.8))
-
-    ax.set_title(f'Convergence of {measure_name.upper()}s Across All Alpha Combinations\nPopulation Size: 100 | Generations: 20 | Iterations: 100',
-                 fontsize=14, pad=20)
-    ax.set_xlabel('Generation', fontsize=12)
-    ax.set_ylabel(measure_name.upper(), fontsize=12)
-    ax.set_xticks(np.arange(0, g, 2))
-    ax.tick_params(axis='x', labelsize=10)
-    ax.tick_params(axis='y', labelsize=10)
-    ax.grid(True, linestyle='--', alpha=0.6)
-
-    ax.legend(
-        bbox_to_anchor=(1.05, 1),
-        loc='upper left',
-        borderaxespad=0.,
-        fontsize=9,
-        frameon=True,
-        title='Alpha Combinations',
-        title_fontsize='10'
-    )
-
-    fig.tight_layout()
-    plt.show()
+        fig.tight_layout()
+        plt.show()
     
 def plot_selection_strength2(ranks, weights, lambdas, M=100):
     """
@@ -356,6 +360,7 @@ def plot_selection_strength2(ranks, weights, lambdas, M=100):
         lambdas (list): A list of the lambda values used.
         M (int): The number of individuals in the population.
     """    
+    print("Plotting selection probability...")
     M=100
     ranks = np.arange(1,M+1)
     lambdas = [0,1,3,10]
@@ -369,6 +374,11 @@ def plot_selection_strength2(ranks, weights, lambdas, M=100):
         weights = [((M-r)/M)**lam for r in  ranks]
         ax.plot(ranks,weights/np.sum(weights),label=f"λ = {lam}")
     ax.legend(loc='best')
+
+    f.tight_layout()
+    plt.show()
+
+
 
 
 def plot_grouped_bars(sccs_for_specific_mutation_probability, keys, mu, lam):
