@@ -94,33 +94,63 @@ def compute_ph_match_score(target_ph, attractors, basin_sizes, N):
             match_scores[i] += norm_hamming_distance / len(attractor_item)
 
     return np.dot(match_scores, basin_sizes)
-def roulette_wheel_selection(M, current_fitness_values, lam=1):
-    """
-    updated roulette wheel selection by fitness rank instead of fitness value...
-    Also include a new simulation-wide hyperParameter selection strength that enables selection pressue
+# def roulette_wheel_selection(M, current_fitness_values, lam=1):
+#     """
+#     updated roulette wheel selection by fitness rank instead of fitness value...
+#     Also include a new simulation-wide hyperParameter selection strength that enables selection pressue
 
     
+#     """
+#     print(f'Current fitness values... {current_fitness_values}')
+
+#     # Step 1: Rank individuals (1 = best, M = worst)
+#     ranks = np.argsort(-np.array(current_fitness_values)) + 1
+
+#     # Step 2: Compute selection probabilities based on lambda
+#     if lam == 0:
+#         # No selection strength → uniform selection
+#         weights = np.ones(M) / M
+#     else:
+#         # Rank-based selection strength: exponential bias
+#         # weights = np.exp(lam * (ranks / M))
+#         weights = [((M-r)/M)**lam for r in  ranks]
+#         weights = weights / np.sum(weights)
+
+#     print(f'Lambda: {lam}, Weights sum: {np.sum(weights)}')
+
+#     # Step 3: Perform roulette wheel selection
+#     children = np.random.choice(M, M, replace=True, p=weights)
+#     return children, ranks, weights 
+
+def roulette_wheel_selection(M, current_fitness_values, lam=3):
     """
-    print(f'Current fitness values... {current_fitness_values}')
+    Corrected rank-based roulette wheel selection.
+    """
+    sorted_indices = np.argsort(current_fitness_values)[::-1]
+    
+    # Step 2: Initialize an empty weights array aligned with the original population
+    weights = np.zeros(M)
+    
+    # Step 3: Assign weights based on Rank Position
+    for rank_position, original_index in enumerate(sorted_indices):
+        # rank_position 0 is the Best. rank_position M-1 is the Worst.
+        # We use rank_position to determine the score, but store it at original_index
+        
+        # Formula: Higher rank_position (worse) -> Lower score
+        # (M - 0) / M = 1.0 (Best)
+        # (M - (M-1)) / M = Tiny (Worst)
+        score = ((M - rank_position) / M) ** lam
+        
+        weights[original_index] = score
 
-    # Step 1: Rank individuals (1 = best, M = worst)
-    ranks = np.argsort(-np.array(current_fitness_values)) + 1
+    # Normalize weights to sum to 1
+    weights = weights / np.sum(weights)
 
-    # Step 2: Compute selection probabilities based on lambda
-    if lam == 0:
-        # No selection strength → uniform selection
-        weights = np.ones(M) / M
-    else:
-        # Rank-based selection strength: exponential bias
-        # weights = np.exp(lam * (ranks / M))
-        weights = [((M-r)/M)**lam for r in  ranks]
-        weights = weights / np.sum(weights)
-
-    print(f'Lambda: {lam}, Weights sum: {np.sum(weights)}')
-
-    # Step 3: Perform roulette wheel selection
+    # Step 4: Perform selection
+    # Now weights[0] actually corresponds to Index 0
     children = np.random.choice(M, M, replace=True, p=weights)
-    return children, ranks, weights 
+    
+    return children, sorted_indices, weights
 
 def roulette_wheel_selection_v2(M, current_fitness_values, lam=1):
     # We don't add +1 here, we just want the sorted indices
@@ -385,17 +415,26 @@ def run_evolutionary_study_with_replicates_with_ph_match(
                     fitness_scores = fitness_mat[:, gen, nth_sim]  # Fitness of all networks in current gen
 
                     #roulette-wheel selection...
-                    indices_selected, ranks, weights = roulette_wheel_selection(M, fitness_scores, lam=selection_strength)
-                    indices_selected2, ranks2, weights2 = roulette_wheel_selection_v2(M, fitness_scores, lam=selection_strength)
-                    
-                    print(f'{len(indices_selected)} children selected from the roulette wheel selection')
-                    ranks_mat[gen,nth_sim, :] = ranks
-                    weights_mat[gen,nth_sim, :] = weights
-                    # Step C: Create next generation by DIRECT COPYING...
-                    new_bns = []
-                    for index in indices_selected:
-                        new_bns.append(copy.deepcopy(bns[index]))
+                    # indices_selected, ranks, weights = roulette_wheel_selection(M, fitness_scores, lam=selection_strength)
+                    #UPDATE on Jan 1, 2026
+                    # --- Step A: Elite preservation --- 
+                    if selection_strength == 10:
+                        print("Welcome to stopping signal... lambda = 3")
+                    elite_index = np.argmax(fitness_scores) 
+                    elite_bn = copy.deepcopy(bns[elite_index]) 
+                    # --- Step B: Roulette wheel selection (rank-based) --- 
+                    indices_selected, ranks, weights = roulette_wheel_selection(M, fitness_scores, lam=selection_strength) 
+
+                    ranks_mat[gen, nth_sim, :] = ranks 
+                    weights_mat[gen, nth_sim, :] = weights 
+                    # --- Step C: Create next generation by copying --- 
+                    new_bns = [] 
+                    for idx in indices_selected: 
+                        new_bns.append(copy.deepcopy(bns[idx])) 
+                    # Insert elite (replace worst child) 
+                    new_bns[-1] = elite_bn 
                     bns = new_bns
+                    
                     
                     # Step D: Mutate the selected networks (now applies to ALL M networks)
                     for index in range(M):  # Mutate all selected networks (no parent/child distinction)

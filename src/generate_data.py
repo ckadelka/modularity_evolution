@@ -3,6 +3,7 @@ import sys
 import csv
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 try:
     import src.utils as utils
@@ -54,7 +55,7 @@ else:
     mutation_probability = 0.01   
     
 if __name__ == "__main__":
-    print(f'Running {filename} with SLURM_ID={SLURM_ID}, M={M}, q={q}, g={g}, N={N}, n={n}, k={k}, mutation_probability={mutation_probability}')
+    # print(f'Running {filename} with SLURM_ID={SLURM_ID}, M={M}, q={q}, g={g}, N={N}, n={n}, k={k}, mutation_probability={mutation_probability}')
     DEBUG_MODE = True
     STRONGLY_CONNECTED = False
     NO_SELF_REGULATION = True
@@ -79,17 +80,29 @@ if __name__ == "__main__":
     print("Logging run parameters to master_data_file.csv")
     row_items = [M, q, g, N, n, k, mutation_probability, selection_method, json.dumps(selection_strengths), indegree_distribution, n_alphas, json.dumps(alpha_dyn), STRONGLY_CONNECTED, MUTATE_ONLY_CHILDREN, NO_SELF_REGULATION, n_reps, signature, str(pd.Timestamp.now())]
     print(f"row items >>> {row_items}")
-    data_run_exists = pd.read_csv('master_data_file.csv')
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    #find it in the two potential paths
+    path_in_code_dir = os.path.join(script_dir, "master_data_file.csv")
+    path_in_parent_dir = os.path.abspath(os.path.join(script_dir, "..", "master_data_file.csv"))    
+    if os.path.exists(path_in_code_dir):
+        print("master file is in the code dir")
+        master_data_file = path_in_code_dir       
+    elif os.path.exists(path_in_parent_dir):
+        print("master file is in the parent (src) dir")
+        master_data_file = path_in_parent_dir      
+    else:
+        raise FileNotFoundError(f"Could not find master_data_file.csv in {script_dir} or {os.path.dirname(script_dir)}")
+    data_run_exists = pd.read_csv(master_data_file)
     if not signature in data_run_exists['signature'].values:
         print("data signature has not been logged yet, logging now.nnoiiiiiiiiiiiiiiiii")   
         with open('master_data_file.csv', 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(row_items)
 
-    data_path = os.path.abspath(os.path.join('data/', f'{signature}'))
+    data_path = os.path.abspath(os.path.join(os.path.dirname(master_data_file), 'data', f'{signature}'))
     if os.path.exists(data_path) and any(os.scandir(data_path)):
-        print(f'Warning: Data path {data_path} already exists and data has been generated and saved. You may load the the data from this path.')
-        exit(0)
+        print(f'Warning: Data path {data_path} already exists and data has been generated and saved. You may load the the data at this location using the analyze_data.py module.')
+        sys.exit(0)
         
     print(f"Creating data path at {data_path}")
     os.makedirs(os.path.abspath(data_path), exist_ok=True)
