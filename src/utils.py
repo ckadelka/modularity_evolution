@@ -8,6 +8,8 @@ import itertools
 import boolforge
 import json
 import copy
+from globals import *
+from numba import njit, prange
 
 
 def hash_params(count, **kwargs):
@@ -15,11 +17,8 @@ def hash_params(count, **kwargs):
     pass -1 in count param to get the full hash.
     count is the length of the hash you want to retrieve. .e.g passing 10 retireve first 10 characters of the hash
     """
-    print(f'Hashing parameters: {kwargs}')
     sig_str = ''.join(f'{value}' for _ , value in sorted(kwargs.items()))
     keys = ', '.join(f'{key}={value}' for key, value in sorted(kwargs.items()))
-    print('Parameter string for hashing:', keys)
-    print(f'Generated signature string: {sig_str}')
     return hashlib.sha256(sig_str.encode()).hexdigest()[:] if count == -1 else hashlib.sha256(sig_str.encode()).hexdigest()[:count]
 
 
@@ -58,6 +57,96 @@ def generate_alpha_combinations(alpha_dyn, step_size=0.2):
     return combos
 
 
+@njit(cache=True)
+def int_to_binvec_numba(x, N):
+    """
+    Fast bitwise conversion of integer to binary array.
+    Replaces the slow string formatting method.
+    """
+    out = np.zeros(N, dtype=np.int8)
+    for i in range(N):
+        # Extract the i-th bit using bitwise shift and AND
+        out[N - 1 - i] = (x >> i) & 1
+    return out
+
+@njit(cache=True)
+def _fast_attractor_hamming(attractor_states, target_ph, N):
+    """
+    Numba-accelerated kernel to calculate average Hamming distance 
+    for one specific attractor cycle.
+    """
+    total_dist = 0.0
+    steps = len(attractor_states)
+    
+    for i in range(steps):
+        state_int = attractor_states[i]
+        # Use the fast bitwise converter we wrote above
+        state_bin = int_to_binvec_numba(state_int, N)
+        
+        # Manual Hamming distance calculation is faster in Numba than np.mean(a!=b)
+        mismatch_count = 0
+        for b in range(N):
+            if state_bin[b] != target_ph[b]:
+                mismatch_count += 1
+        
+        norm_dist = mismatch_count / N
+        total_dist += norm_dist
+
+    return total_dist / steps
+
+def compute_ph_match_score_numbarized(target_ph, attractors, basin_sizes, N):
+    """
+    Optimized wrapper. It keeps the outer structure compatible with your objects,
+    but offloads the heavy math to Numba.
+    """
+    # Ensure basin_sizes is a numpy array for vector math
+    basin_sizes = np.array(basin_sizes, dtype=np.float64)
+    basin_sizes /= basin_sizes.sum()
+
+    match_scores = np.zeros(len(attractors))
+    
+    # Ensure target is the correct type for Numba
+    target_ph_arr = np.array(target_ph, dtype=np.int8)
+
+    for i, attractor_item in enumerate(attractors):
+        # boolforge likely returns a list of ints; convert to array for Numba
+        attractor_arr = np.array(attractor_item, dtype=np.int64)      
+        # Call the fast Numba function
+        match_scores[i] = _fast_attractor_hamming(attractor_arr, target_ph_arr, N)
+
+    return np.dot(match_scores, basin_sizes)
+
+# numba- Helper function for roulette-wheel selection weight calculation
+@njit(cache=True)
+def _calc_rank_weights(M, lam):
+    weights = np.zeros(M)
+    for rank_position in range(M):
+        # Rank based score
+        score = ((M - rank_position) / M) ** lam
+        weights[rank_position] = score
+    return weights
+
+def roulette_wheel_selection_numbarized(M, current_fitness_values, lam=3):
+    sorted_indices = np.argsort(current_fitness_values)[::-1]
+    
+    # Use the fast helper to generate raw weights
+    raw_weights = _calc_rank_weights(M, lam)
+    
+    # Sync weights to original indices
+    weights = np.zeros(M)
+    for rank_pos, original_idx in enumerate(sorted_indices):
+        weights[original_idx] = raw_weights[rank_pos]
+
+    # Normalize
+    weights_sum = np.sum(weights)
+    if weights_sum > 0:
+        weights = weights / weights_sum
+    else:
+        weights = np.ones(M) / M
+        
+    children = np.random.choice(M, M, replace=True, p=weights)
+    return children, sorted_indices, weights
+
 def int_to_binvec(x, N):
     return np.array([int(b) for b in format(x, f'0{N}b')])
 
@@ -68,7 +157,7 @@ def save_data(data, filename, folder='data'):
     file_path = os.path.abspath(os.path.join(folder, filename))
     with open(file_path, 'wb') as file:
         pickle.dump(data, file)
-    print(f"Data successfully saved to {file_path}")
+    # print(f"Data successfully saved to {file_path}")
     
     
 def load_data(filename, folder='data'):
@@ -76,7 +165,7 @@ def load_data(filename, folder='data'):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"No such file: '{file_path}'")
     with open(file_path, 'rb') as file:
-        print(f"Data file FOUND it's actually LOADING DATA..................")
+        # print(f"Data file FOUND it's actually LOADING DATA..................")
         data = pickle.load(file)
     return data
 
@@ -178,15 +267,17 @@ def roulette_wheel_selection_v2(M, current_fitness_values, lam=1):
 
 
 def load_generated_data(signature):
-    data_path = os.path.join('data/', f'{signature}')
+    data_path = os.path.join(GLOBAL_MASTER_DIR, 'data', f'{signature}')
     print(f'Loading data from {data_path}')
     if not os.path.exists(data_path):
         print(f"Error: Data path '{data_path}' does not exist. Kindly check the signature or verify that you have run the data generation step.")
         return None
-    if not os.path.exists('master_data_file.csv'):
+    
+    data_file = os.path.abspath(os.path.join(GLOBAL_MASTER_DIR, 'master_data_file.csv'))
+    if not os.path.exists(data_file):
         print(f'Error: master_data_file.csv does not exist. Kindly check the signature or verify that you have run the data generation step.')
         return None
-    df = pd.read_csv(os.path.join('master_data_file.csv'))
+    df = pd.read_csv(data_file)
     row_df = df[df['signature'] == signature]
     if len(row_df) == 0:
         print(f'Error: Data path with this signature does not exist. Kindly check the signature or verify that you have run the data generation step.')
@@ -306,8 +397,6 @@ def run_evolutionary_study_with_replicates_with_ph_match(
     in simple terms, adding target attractor selection ACCURACY as a secondary criterion.
     """
     hash_stamp = hash_params(-1, M=M, q=q, g=g, N=N, n=n, k=k, alpha_ph_rob=alpha_ph_rob, alpha_n_attractors=alpha_n_attractors, alpha_ph_match=alpha_ph_match, alpha_fragility=alpha_fragility, alpha_fhd=alpha_fhd, mutation_probability=mutation_probability, target_ph=target_ph, STRONGLY_CONNECTED=STRONGLY_CONNECTED, NO_SELF_REGULATION=NO_SELF_REGULATION, MUTATE_ONLY_CHILDREN=MUTATE_ONLY_CHILDREN, indegree_distribution=indegree_distribution, n_reps=n_reps, selection_method=selection_method, selection_strength=selection_strength)
-    print("Hash stamp for this run:", hash_stamp)
-    print("Data path for this run:", data_path)
     # Generate target phenotype if not provided
     if target_ph is None:
         target_ph = np.random.randint(0, 2, N)
@@ -333,8 +422,9 @@ def run_evolutionary_study_with_replicates_with_ph_match(
         ranks_mat = np.nan * np.zeros((g, n_reps, M))
         weights_mat = np.nan * np.zeros((g, n_reps, M))
 
-        print(f"M={M} && (a1, a2, a3): ({alpha_ph_rob}, {alpha_n_attractors} {alpha_ph_match})")
-        print(f"Length of fitness mat >>> {len(fitness_mat)}")
+        # if DEBUG:
+        #     print(f"M={M} && (a1, a2, a3): ({alpha_ph_rob}, {alpha_n_attractors} {alpha_ph_match})")
+        #     print(f"Length of fitness mat >>> {len(fitness_mat)}")
 
         for nth_sim in range(n_reps):
             bns = []
@@ -351,8 +441,8 @@ def run_evolutionary_study_with_replicates_with_ph_match(
                 bns.append(bn)
             
             for gen in range(g):
-                if DEBUG:
-                    print('alphas %s gth %i' % (', '.join(list(map(str,[alpha_ph_rob,alpha_n_attractors,alpha_fragility,alpha_fhd]))), gen))
+                # if DEBUG:
+                #     print('alphas %s gth %i' % (', '.join(list(map(str,[alpha_ph_rob,alpha_n_attractors,alpha_fragility,alpha_fhd]))), gen))
                 for index, bn in enumerate(bns):
                     attractor_info = bn.get_attractors_and_robustness_measures_synchronous_exact()
                     attractors = attractor_info['Attractors']
@@ -368,7 +458,7 @@ def run_evolutionary_study_with_replicates_with_ph_match(
                     num_attractors_mat[index,gen,nth_sim] = number_of_attractors
                     phenotypical_robustness_mat[index,gen,nth_sim] = coherence
                     fragility_mat[index,gen,nth_sim] = fragility
-                    final_hamming_distance_approximation = 0#not currently implemented
+                    final_hamming_distance_approximation = 0 #not currently implemented
                     final_hamming_distance_mat[index,gen,nth_sim] = final_hamming_distance_approximation
                     final_degree_mat[index,gen,nth_sim] = np.mean(bn.indegrees)
         
@@ -418,10 +508,8 @@ def run_evolutionary_study_with_replicates_with_ph_match(
                     # indices_selected, ranks, weights = roulette_wheel_selection(M, fitness_scores, lam=selection_strength)
                     #UPDATE on Jan 1, 2026
                     # --- Step A: Elite preservation --- 
-                    if selection_strength == 10:
-                        print("Welcome to stopping signal... lambda = 3")
-                    elite_index = np.argmax(fitness_scores) 
-                    elite_bn = copy.deepcopy(bns[elite_index]) 
+                    # elite_index = np.argmax(fitness_scores) 
+                    # elite_bn = copy.deepcopy(bns[elite_index]) 
                     # --- Step B: Roulette wheel selection (rank-based) --- 
                     indices_selected, ranks, weights = roulette_wheel_selection(M, fitness_scores, lam=selection_strength) 
 
@@ -432,7 +520,7 @@ def run_evolutionary_study_with_replicates_with_ph_match(
                     for idx in indices_selected: 
                         new_bns.append(copy.deepcopy(bns[idx])) 
                     # Insert elite (replace worst child) 
-                    new_bns[-1] = elite_bn 
+                    # new_bns[-1] = elite_bn 
                     bns = new_bns
                     
                     
@@ -453,8 +541,8 @@ def run_evolutionary_study_with_replicates_with_ph_match(
                 else:
                     raise ValueError(f"Unknown selection method: {selection_method}")
                     
-                if DEBUG:
-                    print('Generation %i completed' % gen)
+                # if DEBUG:
+                #     print('Generation %i completed' % gen)
             
         data = (fitness_mat,num_attractors_mat,phenotypical_robustness_mat,strongly_connected_component_mat,fragility_mat,final_hamming_distance_mat, final_degree_mat, ph_match_fitness_mat, ranks_mat, weights_mat)
         save_data(data,'results_evolutionary_study_%s.pkl' % (hashed_str), folder=data_path)

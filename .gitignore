@@ -5,3 +5,10 @@ __pycache__/
 **/*__pycache__
 .spyproject
 **/*.spyproject
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.spyproject/
+*.txt

@@ -2,18 +2,17 @@ import sys
 import numpy as np
 from collections import Counter
 
-import utils
 import generate_data
 import utils_plotting as plot
 
 
 try:
     import src.utils as utils
-    import src.generate_data as generate_data
+    # import src.generate_data as generate_data
     import src.utils_plotting as plot
 except ModuleNotFoundError:
     import utils
-    import generate_data
+    # import generate_data
     import utils_plotting as plot
     
 try:
@@ -66,10 +65,10 @@ if __name__ == "__main__":
     MUTATE_ONLY_CHILDREN = True
     indegree_distribution = 'poisson' #poisson #constant
         
-    n_alphas = 5  
+    n_alphas = 5 
     #another experiment
-    population_size = 8
-    n_reps = 2
+    population_size = 100
+    n_reps = 100
     alpha_dyn = [0, 0.005]
     convex_2d = utils.generate_convex_combinations(1/n_alphas,dimension=2)
     all_alphas = utils.generate_alpha_combinations(alpha_dyn)
@@ -86,13 +85,10 @@ if __name__ == "__main__":
     fit2 = []
     ranks = []
     weights = []
-    n = 3
     keys = [f'({round(alpha_ph_rob, 4)}, {round(alpha_n_attractors, 4)}, {round(alpha_ph_match, 4)})' for i, (alpha_ph_rob, alpha_n_attractors, alpha_ph_match) in sorted(enumerate(all_alphas), key=lambda x: x[1][0])]
     selection_method = 'roulette_wheel_with_replacement'
     selection_strengths = [0, 1, 3, 10]
     mutation_probability = 0.05
-    g =  2
-    M = 2
     
     signature = utils.hash_params(10, M=M, q=q, g=g, N=N, n=n, k=k, mutation_probability=mutation_probability, selection_method=selection_method, selection_strengths=str(selection_strengths), indegree_distribution=indegree_distribution, n_alphas=n_alphas, n_reps=n_reps)
     print(f'Run Signature: {signature}')
@@ -116,10 +112,16 @@ if __name__ == "__main__":
     plot.plot_evolution_performance(pheno, keys, lambdas=selection_strengths, tag=f'Avg. Phenotypical Robustness at µ={mutation_probability}')
     plot.plot_evolution_performance(attr, keys, lambdas=selection_strengths, tag=f'Avg. Attrs at µ={mutation_probability}')
     plot.plot_evolution_performance(ph_match, keys, lambdas=selection_strengths, tag=f'Avg. Phenotypical Accuracy at µ={mutation_probability}')
+       
     
-        
-            
-    
+    plot.plot_evolution_performance_all_v2([pheno,ph_match,attr,sccs], 
+                                   keys, 
+                                   lambdas=selection_strengths, 
+                                   measures_names=['Phenotypical robustness',
+                                                   'Phenotypical match',
+                                                   'Dynamical complexity',
+                                                   'Number of SCCs'])
+               
     plot.plot_emergency_scc_convergence(sccs2, all_alphas=all_alphas, selection_strengths=selection_strengths, g=g)
         
     plot.plot_scc_scatter(sccs2, all_alphas=all_alphas, selection_strengths=selection_strengths)

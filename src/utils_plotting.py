@@ -295,7 +295,8 @@ def plot_emergency_scc_convergence(sccs, all_alphas=None, selection_strengths=No
         sns.set_theme(style="whitegrid")
         plt.style.use('seaborn-v0_8-whitegrid')
 
-        colors = plt.cm.tab20(np.linspace(0, 1, len(all_alphas)))
+        colors = plt.cm.plasma(np.linspace(0, 1, len(all_alphas)))
+        cmap = plt.cm.plasma
 
         print(f"current index is >>> {index}")
         scc_p = sccs[index]
@@ -312,9 +313,12 @@ def plot_emergency_scc_convergence(sccs, all_alphas=None, selection_strengths=No
 
             avg_convergence = data.mean(axis=(0, 2))
 
+            ls = '-' if alpha2==0 else '--'            
+
             ax.plot(
                 avg_convergence,
-                color=colors[i],
+                color=cmap(alpha1),#colors[i],
+                ls=ls,
                 linewidth=2.5,
                 marker='o',
                 markersize=5,
@@ -445,5 +449,167 @@ def plot_grouped_bars(sccs_for_specific_mutation_probability, keys, mu, lam):
                  fontsize=14, pad=20)
     ax.legend(title='Generations')
     
+    plt.tight_layout()
+    plt.show()
+    
+    
+    
+def plot_evolution_performance_all(measures, keys=None, lambdas=None, measures_names=None):
+        """
+        Plot evolution performance for measures like SCCs, Attractor Length, etc.
+        
+        Parameters
+        ----------
+        measures : np.ndarray
+            list of 5D arrays of shape (num_lambdas, num_alphas, num_sims, num_generations, num_pop)
+        keys : list or None
+            List of α labels, e.g., ['α1', 'α2', ..., 'α12'].
+            If None, it auto-generates them as bold α₁ … αₙ.
+        lambdas : list
+            List of λ values corresponding to each selection strength.
+        tag : str
+            Label for y-axis and plot title (e.g. 'Number of SCCs').
+        """
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        num_lambdas = measures[0].shape[0]
+        num_alphas = measures[0].shape[1]
+
+        # Auto-generate bold LaTeX-style α₁ ... αₙ labels if not provided
+        if keys is None:
+            keys = [fr'$\mathbf{{\alpha_{{{i+1}}}}}$' for i in range(num_alphas)]
+        else:
+            # Reformat user-provided keys into bold LaTeX α format
+            keys = [fr'$\mathbf{{\alpha_{{{i+1}}}}}$' for i in range(len(keys))]
+
+        # Aggregate over simulations, generations, and population axes
+        mean_values = []
+        for ii in range(len(measures)):
+            mean_values.append(np.mean(measures[ii], axis=(2, 3, 4)))  # shape: (num_lambdas, num_alphas)
+
+        # Create the plot
+        nrows = 2
+        ncols = 2
+        fig, ax = plt.subplots(nrows=nrows,ncols=ncols,sharex=True)
+
+        # Define color palette and markers
+        colors = ['blue', 'red', 'orange', 'green']
+        markers = ['o', 's', 'D', '^']
+
+        # Plot mean performance per λ
+        for ii in range(4):
+            for i in range(num_lambdas):
+                ax[ii//2,ii%2].plot(
+                    range(num_alphas),
+                    mean_values[ii][i],
+                    marker=markers[i % len(markers)],
+                    color=colors[i % len(colors)],
+                    label=(fr'$\lambda={lambdas[i]}$' if lambdas is not None else fr'$\lambda_{i+1}$') if ii==0 else '__nolabel__',
+                    linewidth=2,
+                    markersize=6
+                )
+
+            ax[ii//2,ii%2].set_xticks(range(num_alphas))
+            ax[ii//2,ii%2].set_xticklabels(keys, rotation=45)
+            #ax[ii//2,ii%2].set_xlabel(r'$\mathbf{\alpha}$ (network configuration index)', fontsize=13)
+            if measures_names is not None:
+                ax[ii//2,ii%2].set_ylabel(measures_names[ii], fontsize=13)
+            ax[ii//2,ii%2].grid(False)
+        # ax.set_title(fr"Evolution of {tag} across $\mathbf{{\alpha}}$ for different $\lambda$", fontsize=14)
+        #title = fr"Evolution of {tag} across $\mathbf{{\alpha}}$ for different $\lambda$"
+        #print(f"Title is >>> {title}")
+        handles, labels = ax[0,0].get_legend_handles_labels()
+        fig.legend(title=r'selection strength:',
+                              ncol=4,
+                              frameon=False,
+                              loc='center',
+                              bbox_to_anchor=[0.5,1.04])
+        plt.tight_layout()
+        plt.show()
+        
+        
+def plot_evolution_performance_all_v2(measures, keys=None, lambdas=None, measures_names=None):
+    """
+    Plot evolution performance for measures like SCCs, Attractor Length, etc.
+    
+    Parameters
+    ----------
+    measures : np.ndarray
+        list of 5D arrays of shape (num_lambdas, num_alphas, num_sims, num_generations, num_pop)
+    keys : list or None
+        List of α labels, e.g., ['α1', 'α2', ..., 'α12'].
+        If None, it auto-generates them as bold α₁ … αₙ.
+    lambdas : list
+        List of λ values corresponding to each selection strength.
+    tag : str
+        Label for y-axis and plot title (e.g. 'Number of SCCs').
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    num_lambdas = measures[0].shape[0]
+    num_alphas = measures[0].shape[1]
+
+    keys_mod = np.array(list(map(lambda x: x.replace(')','').replace('(','').split(', '),keys)),dtype=float)
+    
+    # Aggregate over simulations, generations, and population axes
+    mean_values = []
+    for ii in range(len(measures)):
+        mean_values.append(np.mean(measures[ii], axis=(2, 3, 4)))  # shape: (num_lambdas, num_alphas)
+
+    # Create the plot
+    nrows = 4
+    ncols = 1
+    fig, ax = plt.subplots(nrows=nrows,ncols=ncols,sharex=True,figsize=(4,10))
+
+    # Define color palette and markers
+    colors = ['blue', 'red', 'orange', 'green']
+    markers = ['o', 'x']
+    lss = ['-','--']
+    # Plot mean performance per λ
+    for ii in range(4):
+        for j,dyn_compl in enumerate([0,0.005]):
+            which = np.where(keys_mod[:,2]==dyn_compl)[0]
+            for i in range(num_lambdas):
+                ax[ii].plot(
+                    keys_mod[which,0],
+                    mean_values[ii][i][which],
+                    marker=markers[j],
+                    color=colors[i],
+                    ls=lss[j],
+                    label=(fr'$\lambda={lambdas[i]}$' if lambdas is not None else fr'$\lambda_{i+1}$') if ii==0 and j==0 else '__nolabel__',
+                    linewidth=2,
+                    markersize=6
+                )
+        if ii==3:
+            ax[ii].set_xlabel('weight phenotypical robustness')
+            xticks = [0,0.2,0.4,0.6,0.8,1]
+            xticklabels = [str(round(el*100)) + '%' for el in xticks]
+            ax[ii].set_xticks(xticks)
+            ax[ii].set_xticklabels(xticklabels)
+            y1,y2 = ax[ii].get_ylim()
+            y1 = y1 - 0.25*(y2-y1)
+            for iii,x in enumerate(xticks):
+                ax[ii].text(x,y1+0.05*(y2-y1),str(xticklabels[-1-iii]),va='center',ha='center')
+            ax[ii].text(0.5,y1+0.15*(y2-y1),'weight phenotypical match',va='center',ha='center')
+            ax[ii].set_ylim([y1,y2])
+            x1,x2 = ax[ii].get_xlim()
+            ax[ii].set_xlim([x1-0.05*(x2-x1),x1+1.05*(x2-x1)])
+        #ax[ii//2,ii%2].set_xticks(range(num_alphas))
+        #ax[ii//2,ii%2].set_xticklabels(keys, rotation=45)
+        #ax[ii//2,ii%2].set_xlabel(r'$\mathbf{\alpha}$ (network configuration index)', fontsize=13)
+        if measures_names is not None:
+            ax[ii].set_ylabel(measures_names[ii], fontsize=13)
+        ax[ii].grid(False)
+    # ax.set_title(fr"Evolution of {tag} across $\mathbf{{\alpha}}$ for different $\lambda$", fontsize=14)
+    #title = fr"Evolution of {tag} across $\mathbf{{\alpha}}$ for different $\lambda$"
+    #print(f"Title is >>> {title}")
+    handles, labels = ax[0].get_legend_handles_labels()
+    fig.legend(title=r'selection strength:',
+                          ncol=1,
+                          frameon=False,
+                          loc='center',
+                          bbox_to_anchor=[1.1,0.75])
     plt.tight_layout()
     plt.show()

@@ -4,6 +4,7 @@ import csv
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from globals import *
 
 try:
     import src.utils as utils
@@ -56,13 +57,13 @@ else:
     
 if __name__ == "__main__":
     # print(f'Running {filename} with SLURM_ID={SLURM_ID}, M={M}, q={q}, g={g}, N={N}, n={n}, k={k}, mutation_probability={mutation_probability}')
-    DEBUG_MODE = True
+    DEBUG_MODE = False
     STRONGLY_CONNECTED = False
     NO_SELF_REGULATION = True
     MUTATE_ONLY_CHILDREN = True
     indegree_distribution = 'poisson' #poisson #constant
         
-    n_alphas = 5  
+    n_alphas = 4  
     population_size = 8
     n_reps = 2
     alpha_dyn = [0, 0.005]
@@ -80,22 +81,16 @@ if __name__ == "__main__":
     print("Logging run parameters to master_data_file.csv")
     row_items = [M, q, g, N, n, k, mutation_probability, selection_method, json.dumps(selection_strengths), indegree_distribution, n_alphas, json.dumps(alpha_dyn), STRONGLY_CONNECTED, MUTATE_ONLY_CHILDREN, NO_SELF_REGULATION, n_reps, signature, str(pd.Timestamp.now())]
     print(f"row items >>> {row_items}")
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    #find it in the two potential paths
-    path_in_code_dir = os.path.join(script_dir, "master_data_file.csv")
-    path_in_parent_dir = os.path.abspath(os.path.join(script_dir, "..", "master_data_file.csv"))    
-    if os.path.exists(path_in_code_dir):
-        print("master file is in the code dir")
-        master_data_file = path_in_code_dir       
-    elif os.path.exists(path_in_parent_dir):
-        print("master file is in the parent (src) dir")
-        master_data_file = path_in_parent_dir      
-    else:
+    # script_dir = os.path.dirname(os.path.abspath(__file__))
+    # #find it in the two potential paths
+    master_data_file = os.path.join(GLOBAL_MASTER_DIR, "master_data_file.csv")
+    # path_in_parent_dir = os.path.abspath(os.path.join(script_dir, "..", "master_data_file.csv"))    
+    if not os.path.exists(master_data_file):
         raise FileNotFoundError(f"Could not find master_data_file.csv in {script_dir} or {os.path.dirname(script_dir)}")
     data_run_exists = pd.read_csv(master_data_file)
     if not signature in data_run_exists['signature'].values:
         print("data signature has not been logged yet, logging now.nnoiiiiiiiiiiiiiiiii")   
-        with open('master_data_file.csv', 'a', newline='') as f:
+        with open(master_data_file, 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(row_items)
 
@@ -115,4 +110,9 @@ if __name__ == "__main__":
                                           NO_SELF_REGULATION=NO_SELF_REGULATION, MUTATE_ONLY_CHILDREN=MUTATE_ONLY_CHILDREN,
                                           indegree_distribution=indegree_distribution, n_reps=n_reps, selection_method=selection_method, selection_strength=selection_strength, DEBUG=DEBUG_MODE, data_path=data_path)
 
+    
+
+# main()
+# import cProfile
+# cProfile.run('main()', 'profile.txt')
 

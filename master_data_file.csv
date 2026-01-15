@@ -1,2 +1,6 @@
 population_size,percent_selected,generations,network_size,degree,canalizing_depth,mutation_probability,selection_method,selection_strengths,indegree_distribution,n_alphas,alpha_dyn,STRONGLY_CONNECTED,MUTATE_ONLY_CHILDREN,NO_SELF_REGULATION,n_reps,signature,date
-2,0.1,2,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,5,"[0, 0.005]",False,True,True,2,6d9345091e,2025-12-19 12:55:48.051484
+8,0.1,2,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,5,"[0, 0.005]",False,True,True,2,a21e805b96,2026-01-01 15:55:35.659755
+8,0.1,2,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,5,"[0, 0.005]",False,True,True,2,a21e805b96,2026-01-01 15:55:35.659598
+100,0.1,20,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,5,"[0, 0.005]",False,True,True,100,93f0cfe974,2026-01-01 16:07:07.979731
+2,0.1,2,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,4,"[0, 0.005]",False,True,True,2,0b83e5aeb8,2026-01-06 09:38:43.898925
+3,0.1,2,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,4,"[0, 0.005]",False,True,True,2,36cb2e6244,2026-01-06 09:57:15.153940
