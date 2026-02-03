@@ -447,7 +447,7 @@ def run_evolutionary_study_with_replicates_with_ph_match(
                     attractor_info = bn.get_attractors_and_robustness_measures_synchronous_exact()
                     attractors = attractor_info['Attractors']
                     basin_sizes = attractor_info['BasinSizes']
-                    number_of_attractors = attractor_info['ExactNumberOfAttractors']
+                    number_of_attractors = attractor_info['NumberOfAttractors']
                     fragility = attractor_info['Fragility']
                     coherence = attractor_info['Coherence']                    
                     ph_match = compute_ph_match_score(target_ph, attractors, basin_sizes, N)

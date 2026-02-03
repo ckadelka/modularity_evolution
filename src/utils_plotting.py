@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
+import global_sensitivity_analysis as gsa
 
 
 
@@ -95,8 +97,8 @@ def plot_evolution_performance(measure, keys=None, lambdas=None, tag='Number of 
     else:
         keys = [fr'$\mathbf{{\alpha_{{{i+1}}}}}$' for i in range(len(keys))]
 
-    mean_values = np.mean(measure, axis=(2, 3, 4)) 
-
+    # mean_values = np.mean(measure, axis=(2, 3, 4)) if len(measure.shape) >= 3 else np.mean(measure, axis=(1, 2))
+    mean_values = np.mean(measure, axis=(2))
     fig, ax = plt.subplots()
 
     colors = ['blue', 'red', 'orange', 'green']
@@ -213,7 +215,7 @@ def plot_heatmap(sccs, keys,  mutation_probabilities=None, k_canalizing=None, se
         for i, mp in enumerate(mutation_probabilities):
             row = []
             for scc_mat in sccs[i]:
-                gg = np.mean(scc_mat, axis=(0, 2))
+                gg = np.mean(scc_mat, axis=(0, 2)) if len(scc_mat.shape) >= 2 else scc_mat
                 scc_gen0 = gg[0]
                 scc_genX = gg[-1]
                 lc = np.log2(scc_genX / scc_gen0)
@@ -224,7 +226,7 @@ def plot_heatmap(sccs, keys,  mutation_probabilities=None, k_canalizing=None, se
         for i, mp in enumerate(k_canalizing):
             row = []
             for scc_mat in sccs[i]:
-                gg = np.mean(scc_mat, axis=(0, 2))
+                gg = np.mean(scc_mat, axis=(0, 2)) if len(scc_mat.shape) >= 2 else scc_mat
                 scc_gen0 = gg[0]
                 scc_genX = gg[-1]
                 lc = np.log2(scc_genX / scc_gen0)
@@ -235,7 +237,7 @@ def plot_heatmap(sccs, keys,  mutation_probabilities=None, k_canalizing=None, se
         for i, mp in enumerate(selection_strengths):
             row = []
             for scc_mat in sccs[i]:
-                gg = np.mean(scc_mat, axis=(0, 2))
+                gg = np.mean(scc_mat, axis=(0, 2)) if len(scc_mat.shape) >= 2 else scc_mat
                 scc_gen0 = gg[0]
                 scc_genX = gg[-1]
                 lc = np.log2(scc_genX / scc_gen0)
@@ -351,6 +353,36 @@ def plot_emergency_scc_convergence(sccs, all_alphas=None, selection_strengths=No
 
         fig.tight_layout()
         plt.show()
+ 
+
+
+
+    
+def run_plot_prcc(results_file):
+    print("Done with GSA...now about to plot PRCC curves...")
+    df = pd.read_csv(results_file)
+
+    param_columns = ['p', 'k', 'lam', 'alpha_attr', 'ratio_rob']
+    X = df[param_columns].to_numpy(dtype=float)
+    
+    param_names = [ r"$p$",  r"$k$", r"$lam$", r"$\alpha\_attr$", r"$ratio\_rob$"]
+    
+    scc_Y = df['scc_outcome'].to_numpy(dtype=float)
+    robustness_Y = df['robustness_outcome'].to_numpy(dtype=float)
+    match_Y = df["match_outcome"].to_numpy(dtype=float)
+    
+    # PRCC for Y_var
+    out_scc = gsa.prcc(X, scc_Y, param_names=param_names, rank=True)
+    gsa.plot_prcc(out_scc, savepath="prcc_scc.pdf", title='Strongly Connected Components')
+    
+    out_robustness = gsa.prcc(X, robustness_Y, param_names=param_names, rank=True)
+    gsa.plot_prcc(out_robustness, savepath="prcc_robustness_final.pdf", title='Phenotypical Robustness')
+    
+    out_match = gsa.prcc(X, match_Y, param_names=param_names, rank=True)
+    gsa.plot_prcc(out_match, savepath="prcc_match_final.pdf", title='Phenotypical Match')
+    
+    
+    
     
 def plot_selection_strength2(ranks, weights, lambdas, M=100):
     """
@@ -452,7 +484,92 @@ def plot_grouped_bars(sccs_for_specific_mutation_probability, keys, mu, lam):
     plt.tight_layout()
     plt.show()
     
+def plot_grouped_bars_v2(sccs_for_specific_mutation_probability, keys, mu, lam):
+    # Data processing remains the same
+    mean_number_sccs_gen0 = []
+    mean_number_sccs_genx = []
+    std_number_sccs_gen0 = []
+    std_number_sccs_genx = []
     
+    for i, scc_mat in enumerate(sccs_for_specific_mutation_probability):
+        # avg_arr = np.mean(scc_mat, axis=(0))
+        # std_arr = np.std(scc_mat, axis=(0))  # Corrected from mean to std
+        
+        # mean_number_sccs_gen0.append(avg_arr[0])
+        # mean_number_sccs_genx.append(avg_arr[-1])
+        # std_number_sccs_gen0.append(std_arr[0])
+        # std_number_sccs_genx.append(std_arr[-1])
+        
+        
+        scc_mat_flat = scc_mat.reshape(-1, scc_mat.shape[-1])
+        # scc_mat_flat shape is now (1000, 20) - assuming 50 jobs * 20 reps
+        
+        # 2. Calculate Stats on the flattened data
+        # Now axis=0 is "All Replicates" (size 1000)
+        avg_arr = np.mean(scc_mat_flat, axis=0)  # Result shape: (20,)
+        
+        # Calculate SEM (Standard Error) for correct error bars
+        N = scc_mat_flat.shape[0] # 1000
+        std_dev = np.std(scc_mat_flat, axis=0)
+        sem_arr = std_dev / np.sqrt(N) # Use this for error bars
+        
+        # 3. Append to lists (same as before)
+        mean_number_sccs_gen0.append(avg_arr[0])
+        mean_number_sccs_genx.append(avg_arr[-1])
+        
+        std_number_sccs_gen0.append(sem_arr[0])
+        std_number_sccs_genx.append(sem_arr[-1])
+    
+    # Plotting setup
+    width = 0.35
+    x = np.arange(len(sccs_for_specific_mutation_probability))
+    
+    # Create figure and axes
+    fig, ax = plt.subplots(figsize=(12, 7))
+    plt.style.use('seaborn-v0_8-whitegrid')
+    
+    # Prepare data for plotting
+    mean_number_sccs = [mean_number_sccs_gen0, mean_number_sccs_genx]
+    std_number_sccs = [std_number_sccs_gen0, std_number_sccs_genx]
+    
+    # Generation label helper
+    def get_generation_label(index):
+        if index > 0:
+            return f'Gen {len(avg_arr)-1}'
+        return f'Gen {index}'
+    
+    # Plot bars
+    for i, (mean, std) in enumerate(zip(mean_number_sccs, std_number_sccs)):
+        ax.bar(x + (i - 0.5)*width, mean, width=width, 
+               label=get_generation_label(i), yerr=std)
+    
+    
+    # for i, mean in enumerate(mean_number_sccs):
+    #     ax.bar(x + (i - 0.5)*width, mean, width=width, 
+    #            label=get_generation_label(i))
+    
+    # Add mu annotation
+    # ax.text(0.02, 0.98, f'μ = {mu}', transform=ax.transAxes,
+    #         fontsize=12, verticalalignment='top',
+    #         bbox=dict(facecolor='white', alpha=0.8))
+    ax.text(0.02, 0.98, f'μ = {mu}, λ = {lam}',
+        transform=ax.transAxes,
+        fontsize=12, verticalalignment='top',
+        bbox=dict(facecolor='white', alpha=0.8))
+    
+    # Axis labels and title
+    ax.set_ylabel('Average SCC')
+    ax.set_xlabel('Alpha Combinations')
+    ax.set_xticks(x)
+    ax.set_xticklabels(keys, rotation=45)
+    # ax.set_title(f'Emergence of Modularity {population_size} rBNs of {N} nodes {n_sim} iterations', 
+    #              fontsize=14, pad=20)
+    ax.set_title(f'Emergence of Modularity 100 rBNs of 10 nodes 100 iterations', 
+                 fontsize=14, pad=20)
+    ax.legend(title='Generations')
+    
+    plt.tight_layout()
+    plt.show()
     
 def plot_evolution_performance_all(measures, keys=None, lambdas=None, measures_names=None):
         """
@@ -556,7 +673,7 @@ def plot_evolution_performance_all_v2(measures, keys=None, lambdas=None, measure
     # Aggregate over simulations, generations, and population axes
     mean_values = []
     for ii in range(len(measures)):
-        mean_values.append(np.mean(measures[ii], axis=(2, 3, 4)))  # shape: (num_lambdas, num_alphas)
+        mean_values.append(np.mean(measures[ii], axis=(2)))  # shape: (num_lambdas, num_alphas)
 
     # Create the plot
     nrows = 4

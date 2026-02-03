@@ -4,3 +4,5 @@ population_size,percent_selected,generations,network_size,degree,canalizing_dept
 100,0.1,20,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,5,"[0, 0.005]",False,True,True,100,93f0cfe974,2026-01-01 16:07:07.979731
 2,0.1,2,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,4,"[0, 0.005]",False,True,True,2,0b83e5aeb8,2026-01-06 09:38:43.898925
 3,0.1,2,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,4,"[0, 0.005]",False,True,True,2,36cb2e6244,2026-01-06 09:57:15.153940
+100,0.1,20,10,3,0,0.05,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,5,"[0, 0.005]",False,True,True,1,a618d50a3c,2026-01-22 18:19:01.704389
+100,0.1,20,10,3,0,0.01,roulette_wheel_with_replacement,"[0, 1, 3, 10]",poisson,5,"[0, 0.005]",False,True,True,20,b7edb4804b,2026-01-26 18:19:01.704389

@@ -68,9 +68,9 @@ if __name__ == "__main__":
     n_alphas = 5 
     #another experiment
     population_size = 100
-    n_reps = 100
+    n_reps = 20
     alpha_dyn = [0, 0.005]
-    convex_2d = utils.generate_convex_combinations(1/n_alphas,dimension=2)
+    # convex_2d = utils.generate_convex_combinations(1/n_alphas,dimension=2)
     all_alphas = utils.generate_alpha_combinations(alpha_dyn)
     mutation_probabilities = [0.05]
 
@@ -86,9 +86,10 @@ if __name__ == "__main__":
     ranks = []
     weights = []
     keys = [f'({round(alpha_ph_rob, 4)}, {round(alpha_n_attractors, 4)}, {round(alpha_ph_match, 4)})' for i, (alpha_ph_rob, alpha_n_attractors, alpha_ph_match) in sorted(enumerate(all_alphas), key=lambda x: x[1][0])]
+    # keys = [f'({round(alpha_ph_rob, 4)}, {round(alpha_n_attractors, 4)}, {round(alpha_ph_match, 4)})' for i, (alpha_ph_rob, alpha_ph_match, alpha_n_attractors) in sorted(enumerate(all_alphas), key=lambda x: x[1][0])]
     selection_method = 'roulette_wheel_with_replacement'
     selection_strengths = [0, 1, 3, 10]
-    mutation_probability = 0.05
+    mutation_probability = 0.01
     
     signature = utils.hash_params(10, M=M, q=q, g=g, N=N, n=n, k=k, mutation_probability=mutation_probability, selection_method=selection_method, selection_strengths=str(selection_strengths), indegree_distribution=indegree_distribution, n_alphas=n_alphas, n_reps=n_reps)
     print(f'Run Signature: {signature}')
@@ -96,9 +97,20 @@ if __name__ == "__main__":
     sccs, sccs2, final_degrees, pheno, attr, ph_match, ranks, weights = utils.load_generated_data(signature)
     print("data loaded")
     print(np.mean(final_degrees[:,:,:,-1,:],(2,3)))
+    
+        
+    
+    sccs = np.mean(sccs, axis=(2, 4))
+    final_degrees = np.mean(final_degrees, axis=(2, 4))
+    pheno = np.mean(pheno, axis=(2, 4))
+    attr = np.mean(attr, axis=(2, 4))
+    ph_match = np.mean(ph_match, axis=(2, 4))
+    ranks = np.mean(ranks, axis=(2, 4))
+    weights = np.mean(weights, axis=(2, 4))
+    
 
     for i, s in enumerate(sccs):
-        plot.plot_grouped_bars(s, keys, 0.05, selection_strengths[i])
+        plot.plot_grouped_bars_v2(s, keys, 0.05, selection_strengths[i])
     
     plot.plot_heatmap(sccs, keys, selection_strengths=selection_strengths, tag=f'Number of SCCs at µ={mutation_probability}')
     plot.plot_heatmap(final_degrees, keys, selection_strengths=selection_strengths, tag=f'Average Final Degrees at µ={mutation_probability}')
@@ -127,6 +139,8 @@ if __name__ == "__main__":
     plot.plot_scc_scatter(sccs2, all_alphas=all_alphas, selection_strengths=selection_strengths)
         
     plot.plot_selection_strength2(ranks, weights, selection_strengths)
+    
+    plot.run_plot_prcc("gsa_results2.csv")
 
     
     
